@@ -990,14 +990,14 @@ local function CreateMainFrame()
     -- 옵션 버튼
     local optBtn = CreateFrame("Button", nil, optBar, "UIPanelButtonTemplate")
     optBtn:SetHeight(20)
-    optBtn:SetPoint("RIGHT", closeBtn, "LEFT", -2, 0)
+    optBtn:SetPoint("RIGHT", closeBtn, "LEFT", -1, 0)
     optBtn:SetText(L.BTN_OPTIONS)
     ShrinkButtonFont(optBtn)
 
     -- 옵션 패널
     local optPanel = CreateFrame("Frame", nil, f,
         BackdropTemplateMixin and "BackdropTemplate" or nil)
-    optPanel:SetSize(170, 160)
+    optPanel:SetHeight(160) -- 임시, SizeOptPanel에서 재계산
     optPanel:SetPoint("TOPRIGHT", optBtn, "BOTTOMRIGHT", 0, -2)
     optPanel:SetFrameStrata("TOOLTIP")
     optPanel:SetBackdrop({
@@ -1044,9 +1044,9 @@ local function CreateMainFrame()
     end
     for i = 1, #SOUND_OPTIONS do
         local btn = CreateFrame("Button", nil, optPanel, "UIPanelButtonTemplate")
-        btn:SetSize(20, 16)
-        ShrinkButtonFont(btn)
+        btn:SetHeight(16)
         btn:SetText(i)
+        ShrinkButtonFont(btn)
         if i == 1 then
             btn:SetPoint("LEFT", soundSelectLabel, "RIGHT", 4, 0)
         else
@@ -1154,7 +1154,8 @@ local function CreateMainFrame()
     fontSizeValue:SetText((SimpleWhisper_DB.fontSize or 12) .. "pt")
 
     local fontSizeSlider = CreateFrame("Slider", nil, optPanel, "OptionsSliderTemplate")
-    fontSizeSlider:SetSize(112, 17)
+    fontSizeSlider:SetHeight(17)
+    fontSizeSlider:SetPoint("RIGHT", optPanel, "RIGHT", -8, 0)
     fontSizeSlider:SetPoint("TOPLEFT", fontSizeLabel, "BOTTOMLEFT", 2, -8)
     fontSizeSlider:SetMinMaxValues(10, 22)
     fontSizeSlider:SetValueStep(1)
@@ -1178,7 +1179,8 @@ local function CreateMainFrame()
     opacityValue:SetPoint("LEFT", opacityLabel, "RIGHT", 4, 0)
 
     local opacitySlider = CreateFrame("Slider", nil, optPanel, "OptionsSliderTemplate")
-    opacitySlider:SetSize(112, 17)
+    opacitySlider:SetHeight(17)
+    opacitySlider:SetPoint("RIGHT", optPanel, "RIGHT", -8, 0)
     opacitySlider:SetPoint("TOPLEFT", opacityCheck, "BOTTOMLEFT", 2, -10)
     opacitySlider:SetMinMaxValues(0.3, 1.0)
     opacitySlider:SetValueStep(0.05)
@@ -1336,24 +1338,40 @@ local function CreateMainFrame()
     versionText:SetPoint("TOP", resetBtn, "BOTTOM", 0, -4)
     versionText:SetText("|cff888888v" .. tocVersion .. "|r")
 
-    local optLabels = { soundLabel, autoOpenLabel, combatOpenLabel, hideChatLabel, opacityLabel, fontSizeLabel }
+    local optLabels = { soundLabel, autoOpenLabel, combatOpenLabel, hideChatLabel, interceptLabel, opacityLabel, fontSizeLabel }
 
-    -- 옵션 패널 외부 클릭 시 닫기 + 너비 자동 조절
+    -- 옵션 패널 크기 계산 (높이: 고정 합산, 너비: 텍스트 측정)
+    -- 세로: 앵커 체인 합산
+    local optH = 6                           -- 상단 여백
+        + 20 + 4                             -- soundCheck + gap
+        + 16 + 4                             -- soundSelectLabel행 + gap
+        + (20 + 2) * 4                       -- autoOpen~interceptCheck (4개 × (20+2))
+        + 6 + 1                              -- gap + optDivider
+        + 8 + 12 + 8 + 17                   -- gap + fontSizeLabel + gap + fontSizeSlider
+        + 8 + 20 + 10 + 17                  -- gap + opacityCheck + gap + opacitySlider
+        + 10 + 1                             -- gap + resetDivider
+        + 6 + 20 + 4 + 20                   -- gap + deleteAllBtn + gap + resetBtn
+        + 4 + 12                             -- gap + versionText
+        + 6                                  -- 하단 여백
+    optPanel:SetHeight(optH)
+
+    -- 가로: 라벨/소리행 너비 측정
+    local maxW = 0
+    for _, lbl in ipairs(optLabels) do
+        local w = lbl:GetStringWidth()
+        if w > maxW then maxW = w end
+    end
+    local panelW = maxW + 20 + 2 + 12       -- 체크박스(20) + 간격(2) + 여백(12)
+    local soundRowW = 22 + soundSelectLabel:GetStringWidth() + 4
+    for _, btn in ipairs(soundBtns) do
+        soundRowW = soundRowW + btn:GetWidth()
+    end
+    soundRowW = soundRowW + 12
+    panelW = math.max(panelW, soundRowW, 130)
+    optPanel:SetWidth(panelW)
+
+    -- 옵션 패널 외부 클릭 시 닫기
     optPanel:SetScript("OnShow", function()
-        -- 라벨 너비 측정하여 패널 자동 맞춤
-        local maxW = 0
-        for _, lbl in ipairs(optLabels) do
-            local w = lbl:GetStringWidth()
-            if w > maxW then maxW = w end
-        end
-        local panelW = maxW + 20 + 2 + 12  -- 체크박스(20) + 간격(2) + 여백(12)
-        optPanel:SetWidth(math.max(panelW, opacitySlider:GetWidth() + 14))
-        local bottom = versionText:GetBottom()
-        local top = optPanel:GetTop()
-        if bottom and top then
-            optPanel:SetHeight(top - bottom + 10)
-        end
-
         optPanel:SetScript("OnUpdate", function()
             if not optPanel:IsMouseOver() and not optBtn:IsMouseOver() and IsMouseButtonDown("LeftButton") then
                 optPanel:Hide()
@@ -1406,7 +1424,7 @@ local function CreateMainFrame()
 
     local inviteBtn = CreateFrame("Button", nil, optBar, "UIPanelButtonTemplate")
     inviteBtn:SetHeight(20)
-    inviteBtn:SetPoint("RIGHT", optBtn, "LEFT", -2, 0)
+    inviteBtn:SetPoint("RIGHT", optBtn, "LEFT", -1, 0)
     inviteBtn:SetText(L.BTN_INVITE)
     ShrinkButtonFont(inviteBtn)
     inviteBtn:Disable()
@@ -1423,7 +1441,7 @@ local function CreateMainFrame()
 
     local copyBtn = CreateFrame("Button", nil, optBar, "UIPanelButtonTemplate")
     copyBtn:SetHeight(20)
-    copyBtn:SetPoint("RIGHT", inviteBtn, "LEFT", -2, 0)
+    copyBtn:SetPoint("RIGHT", inviteBtn, "LEFT", -1, 0)
     copyBtn:SetText(L.BTN_COPY)
     ShrinkButtonFont(copyBtn)
     copyBtn:SetScript("OnClick", function()
@@ -1462,9 +1480,9 @@ local function CreateMainFrame()
     local dividerWidth = SimpleWhisper_DB.dividerX or 100
     -- 시간표시 버튼을 대화삭제 왼쪽으로 이동
     timeBtn:ClearAllPoints()
-    timeBtn:SetPoint("RIGHT", deleteBtn, "LEFT", -2, 0)
+    timeBtn:SetPoint("RIGHT", deleteBtn, "LEFT", -1, 0)
 
-    deleteBtn:SetPoint("RIGHT", copyBtn, "LEFT", -2, 0)
+    deleteBtn:SetPoint("RIGHT", copyBtn, "LEFT", -1, 0)
     local divider = CreateFrame("Frame", nil, f)
     f.divider = divider
     divider:SetWidth(12)
