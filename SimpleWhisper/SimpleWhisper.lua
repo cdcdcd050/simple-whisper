@@ -1672,7 +1672,7 @@ local function CreateMainFrame()
     end)
     inputBox:SetScript("OnEscapePressed", function(self) self:ClearFocus(); f:Hide() end)
     -- 팝업 외부 클릭 시 입력란 포커스 해제
-    local focusWatcher = CreateFrame("Frame", nil, UIParent)
+    local focusWatcher = CreateFrame("Frame", nil, f)
     focusWatcher:SetScript("OnUpdate", function()
         if not inputBox:HasFocus() then return end
         if IsMouseButtonDown("LeftButton") and not f:IsMouseOver() then
