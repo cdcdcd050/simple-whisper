@@ -44,7 +44,7 @@ SimpleWhisper/
       combatOpen = false,           -- 전투 중 자동 열기
       hideFromChat = true,          -- 기본 채팅창 숨기기
       interceptWhisper = true,      -- 귓속말 여기서 열기
-      escClose = true,              -- ESC 즉시 닫기
+      escClose = true,              -- ESC 클릭 시 즉시 닫기
       fontSize = 12,                -- 글꼴 크기 (10~22)
       opacity = 0.85,               -- 창 불투명도 (0.3~1.0)
       opacityEnabled = true,        -- 불투명도 적용 여부
@@ -113,7 +113,7 @@ SimpleWhisper/
 | 전투 중 자동 열기 | 꺼짐 | 전투 중에도 자동 팝업 허용 (창이 이미 열려 있으면 이 옵션과 무관하게 내용 갱신됨) |
 | 채팅창에서 귓속말 숨기기 | 켜짐 | 귓속말을 SimpleWhisper에만 표시 (`ChatFrame_AddMessageEventFilter` 사용, BNet 포함) |
 | 귓속말 여기서 열기 | 켜짐 | 채팅창 이름 클릭/귓속말 시작 시 SimpleWhisper로 가로채기 |
-| ESC 즉시 닫기 | 켜짐 | 켜짐: ESC로 즉시 창 닫기, 꺼짐: ESC로 포커스 해제 후 재차 ESC로 닫기 |
+| ESC 클릭 시 즉시 닫기 | 켜짐 | 켜짐: ESC로 즉시 창 닫기, 꺼짐: ESC로 포커스 해제 후 재차 ESC로 닫기 |
 | 글꼴 크기 | 12pt | 슬라이더 (10~22pt), 채팅/입력/이름 목록/메모 모두 적용 |
 | 불투명도 | 85% | 체크박스 + 슬라이더 (30~100%), 체크 해제 시 100% |
 | 전체삭제 | — | 모든 대화 삭제 (설정 유지) |
