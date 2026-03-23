@@ -1114,17 +1114,12 @@ local function CreateMainFrame()
         else
             btn:SetPoint("LEFT", combatBtns[i - 1], "RIGHT", 0, 0)
         end
+        local COMBAT_TIPS = { L.COMBAT_TIP_1, L.COMBAT_TIP_2, L.COMBAT_TIP_3 }
         btn:SetScript("OnClick", function()
             SimpleWhisper_DB.combatMode = i
             UpdateCombatBtns()
+            print(L.CHAT_PREFIX .. " " .. COMBAT_TIPS[i])
         end)
-        local COMBAT_TIPS = { L.COMBAT_TIP_1, L.COMBAT_TIP_2, L.COMBAT_TIP_3 }
-        btn:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:AddLine(COMBAT_TIPS[i])
-            GameTooltip:Show()
-        end)
-        btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
         combatBtns[i] = btn
     end
     UpdateCombatBtns()
