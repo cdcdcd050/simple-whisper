@@ -34,7 +34,7 @@
 
 ## 설치
 
-1. [Releases](https://github.com/cdcdcd050/simple-whisper/releases)에서 최신 `SimpleWhisper.zip` 다운로드
+1. [Releases](https://github.com/cdcdcd050/simplewhisper/releases)에서 최신 `SimpleWhisper.zip` 다운로드
 2. 압축 해제하여 `SimpleWhisper` 폴더를 WoW 애드온 디렉토리에 복사
    - `World of Warcraft/_버전_/Interface/AddOns/SimpleWhisper/`
 3. 게임 재시작 또는 `/reload`
