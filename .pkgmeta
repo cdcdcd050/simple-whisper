@@ -1,0 +1,8 @@
+package-as: SimpleWhisper
+
+ignore:
+  - CLAUDE.md
+  - README.md
+  - CHANGELOG.md
+  - "*.zip"
+  - .gitignore
