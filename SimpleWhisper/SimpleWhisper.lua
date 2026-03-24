@@ -68,6 +68,7 @@ local L = {
     WHO_LEVEL_PAT   = "^Level (%d+)",
     WHO_TOTAL_PAT   = "(%d+) players? total",
     WHO_NOTFOUND_PAT = "not found",
+    READ_MARKER     = "Read up to here",
 }
 
 ----------------------------------------------------------------------
@@ -83,6 +84,7 @@ local pendingWhoName = nil  -- /who 조회 대상
 local pendingWhoTimer = nil  -- /who 타임아웃 타이머
 local whoFilterUntil = 0  -- /who 시스템 메시지 필터 만료 시간
 local pendingCombatNames = {}  -- 전투 중 보류된 대화 이름 목록
+local lastReadIndices = {}   -- ["이름"] = 마지막 읽은 메시지 인덱스
 local AddMessage             -- forward declare (WHO_LIST_UPDATE 콜백에서 사용)
 local RefreshNameList        -- forward declare (AddMessage에서 사용)
 local RefreshChatDisplay     -- forward declare (WHO_LIST_UPDATE 콜백에서 사용)
@@ -206,6 +208,7 @@ if locale == "koKR" then
     L.COPY_SYS      = "[시스템]"
     L.MEMO_HINT     = "클릭하여 입력..."
     L.MEMO_FMT      = "%s 메모:"
+    L.READ_MARKER   = "여기까지 읽음"
     L.WHO_LEVEL_PAT = "^(%d+)레벨"
     L.WHO_TOTAL_PAT = "모두%s+(%d+)%s*명"
     L.WHO_NOTFOUND_PAT = "찾지 못했습니다"
@@ -593,14 +596,28 @@ RefreshChatDisplay = function()
         return
     end
     local lastDate = nil
-    for _, entry in ipairs(conversations[selectedName]) do
-        -- 날짜 구분선
+    local readIdx = lastReadIndices[selectedName]
+    local totalMsgs = #conversations[selectedName]
+    for i, entry in ipairs(conversations[selectedName]) do
+        local isReadBoundary = readIdx and readIdx > 0 and readIdx < totalMsgs and i == readIdx + 1
         local entryDate = entry.date
-        if entryDate and entryDate ~= lastDate then
+        local isNewDate = entryDate and entryDate ~= lastDate
+        local dateTimeStr = entryDate and entry.time and (entryDate .. " " .. entry.time) or entryDate
+
+        if isReadBoundary and isNewDate then
+            -- 날짜가 바뀌면 날짜+시간만 표시 (읽음 마커 생략)
+            msgFrame:AddMessage("|cff666666————————————————————————|r")
+            msgFrame:AddMessage("|cff888888— " .. dateTimeStr .. " —|r")
+            lastDate = entryDate
+        elseif isReadBoundary then
+            msgFrame:AddMessage("|cff666666————————————————————————|r")
+            msgFrame:AddMessage("|cffffcc00— " .. L.READ_MARKER .. " —|r")
+            msgFrame:AddMessage("|cff666666————————————————————————|r")
+        elseif isNewDate then
             if lastDate then
                 msgFrame:AddMessage("|cff666666————————————————————————|r")
             end
-            msgFrame:AddMessage("|cff888888— " .. entryDate .. " —|r")
+            msgFrame:AddMessage("|cff888888— " .. dateTimeStr .. " —|r")
             lastDate = entryDate
         end
         local line
@@ -640,6 +657,9 @@ end
 
 SelectConversation = function(name, noFocus)
     local prevName = selectedName
+    if prevName and prevName ~= name and conversations[prevName] then
+        lastReadIndices[prevName] = #conversations[prevName]
+    end
     selectedName = name
     unreadCounts[name] = 0
     UpdateLDBText()
@@ -682,6 +702,7 @@ end
 DeleteConversation = function(name)
     conversations[name] = nil
     unreadCounts[name] = nil
+    lastReadIndices[name] = nil
     for i, n in ipairs(nameList) do
         if n == name then
             table.remove(nameList, i)
@@ -1316,6 +1337,7 @@ local function CreateMainFrame()
             wipe(conversations)
             wipe(nameList)
             wipe(unreadCounts)
+            wipe(lastReadIndices)
             selectedName = nil
             UpdateLDBText()
             if mainFrame then
@@ -1530,13 +1552,28 @@ local function CreateMainFrame()
         if not selectedName or not conversations[selectedName] then return end
         local lines = {}
         local lastDate = nil
-        for _, entry in ipairs(conversations[selectedName]) do
-            if entry.date and entry.date ~= lastDate then
+        local readIdx = lastReadIndices[selectedName]
+        local totalMsgs = #conversations[selectedName]
+        for i, entry in ipairs(conversations[selectedName]) do
+            local isReadBoundary = readIdx and readIdx > 0 and readIdx < totalMsgs and i == readIdx + 1
+            local entryDate = entry.date
+            local isNewDate = entryDate and entryDate ~= lastDate
+            local dateTimeStr = entryDate and entry.time and (entryDate .. " " .. entry.time) or entryDate
+
+            if isReadBoundary and isNewDate then
+                table.insert(lines, "————————————————")
+                table.insert(lines, "— " .. dateTimeStr .. " —")
+                lastDate = entryDate
+            elseif isReadBoundary then
+                table.insert(lines, "————————————————")
+                table.insert(lines, "— " .. L.READ_MARKER .. " —")
+                table.insert(lines, "————————————————")
+            elseif isNewDate then
                 if lastDate then
                     table.insert(lines, "————————————————")
                 end
-                table.insert(lines, "— " .. entry.date .. " —")
-                lastDate = entry.date
+                table.insert(lines, "— " .. dateTimeStr .. " —")
+                lastDate = entryDate
             end
             local timePrefix = entry.time and ("[" .. entry.time .. "] ") or ""
             if entry.who == "in" then
@@ -1923,6 +1960,9 @@ local function CreateMainFrame()
 
     -- 창을 닫으면 선택 해제 (자동 열기 시에는 SelectConversation이 다시 설정)
     f:SetScript("OnHide", function()
+        if selectedName and conversations[selectedName] then
+            lastReadIndices[selectedName] = #conversations[selectedName]
+        end
         selectedName = nil
         f.deleteBtn:Disable()
         f.inviteBtn:Disable()
@@ -2143,6 +2183,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if SimpleWhisper_DB.nameList then
             for _, name in ipairs(SimpleWhisper_DB.nameList) do
                 table.insert(nameList, name)
+            end
+        end
+        if SimpleWhisper_DB.lastReadIndices then
+            for name, idx in pairs(SimpleWhisper_DB.lastReadIndices) do
+                lastReadIndices[name] = idx
             end
         end
 
@@ -2401,9 +2446,14 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         self:UnregisterEvent("ADDON_LOADED")
 
     elseif event == "PLAYER_LOGOUT" then
+        -- 현재 선택된 대화의 읽음 위치도 저장
+        if selectedName and conversations[selectedName] then
+            lastReadIndices[selectedName] = #conversations[selectedName]
+        end
         SimpleWhisper_DB.conversations = conversations
         SimpleWhisper_DB.nameList = nameList
         SimpleWhisper_DB.unreadCounts = unreadCounts
+        SimpleWhisper_DB.lastReadIndices = lastReadIndices
 
     elseif event == "CHAT_MSG_WHISPER" then
         local text, fullName, _, _, _, _, _, _, _, _, _, guid = ...
