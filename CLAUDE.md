@@ -1,7 +1,7 @@
 # SimpleWhisper (귓속말) 애드온
 
 ## 개요
-- **애드온**: SimpleWhisper (귓속말) v1.1.0
+- **애드온**: SimpleWhisper (귓속말) v1.1.1
 - **제작자**: CH00
 - **대상 클라이언트**: WoW 클래식~리테일 (Interface: 11508, 20505, 30405, 40402, 50503, 120001)
 - **용도**: 간단한 귓속말(Whisper) 메신저
@@ -287,3 +287,10 @@ SimpleWhisper/
 - `AddMessage`, `RefreshNameList`, `RefreshChatDisplay`, `SelectConversation`, `DeleteConversation`은 forward declare 패턴 사용 (함수 참조가 순서에 의존)
 - `/who` 조회 시 `SetWhoToUI(false)`로 누구 목록 UI 표시를 억제하고 결과 수신 후 복원
 - 채팅 캐시 프레임(`classCacheFrame`)은 애드온 로드 즉시 생성되어 채팅 이벤트를 상시 수집
+
+## 릴리즈 절차
+- 압축 형식: **zip**, `SimpleWhisper/` 폴더를 포함하여 압축
+- 파일명: `SimpleWhisper-{버전}.zip` (예: `SimpleWhisper-1.1.1.zip`)
+- GitHub 릴리즈 태그: `v{버전}` (예: `v1.1.1`)
+- 릴리즈 노트: `CHANGELOG.md` 해당 버전 내용을 그대로 사용
+- PowerShell 압축 명령: `Compress-Archive -Path 'SimpleWhisper' -DestinationPath 'SimpleWhisper-{버전}.zip' -Force`
