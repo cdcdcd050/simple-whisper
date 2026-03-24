@@ -1,4 +1,4 @@
-## Interface: 40402
+## Interface: 38000
 ## Title: SimpleWhisper
 ## Notes: Simple whisper messenger
 ## Title-koKR: SimpleWhisper (귓속말)
