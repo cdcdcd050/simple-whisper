@@ -1,6 +1,5 @@
 package-as: SimpleWhisper
 manual-changelog: CHANGELOG.md
-enable-toc-creation: yes
 
 ignore:
   - CLAUDE.md
@@ -8,3 +7,4 @@ ignore:
   - CHANGELOG.md
   - "*.zip"
   - .gitignore
+  - .github
