@@ -85,6 +85,7 @@ local pendingWhoTimer = nil  -- /who 타임아웃 타이머
 local whoFilterUntil = 0  -- /who 시스템 메시지 필터 만료 시간
 local pendingCombatNames = {}  -- 전투 중 보류된 대화 이름 목록
 local lastReadIndices = {}   -- ["이름"] = 마지막 읽은 메시지 인덱스
+local soundPlayedFor = {}    -- ["이름"] = GetTime() — 팝업 닫힌 동안 소리 재생한 이름+시간 추적
 local AddMessage             -- forward declare (WHO_LIST_UPDATE 콜백에서 사용)
 local RefreshNameList        -- forward declare (AddMessage에서 사용)
 local RefreshChatDisplay     -- forward declare (WHO_LIST_UPDATE 콜백에서 사용)
@@ -321,13 +322,22 @@ local SOUND_OPTIONS = {
     { name = L.SND_3, file = "Interface\\AddOns\\SimpleWhisper\\Sounds\\sw3.ogg" },
 }
 
-local function PlayWhisperSound()
-    if SimpleWhisper_DB and SimpleWhisper_DB.soundEnabled then
-        local idx = SimpleWhisper_DB.soundChoice or 1
-        local snd = SOUND_OPTIONS[idx]
-        if snd then
-            PlaySoundFile(snd.file, "Master")
+local SOUND_DEBOUNCE = 90  -- 같은 상대 연속 귓속말 소리 무시 간격 (초)
+
+local function PlayWhisperSound(name)
+    if not SimpleWhisper_DB or not SimpleWhisper_DB.soundEnabled then return end
+    -- 같은 상대 1분 이내 중복 방지
+    if name then
+        local now = GetTime()
+        if soundPlayedFor[name] and (now - soundPlayedFor[name]) < SOUND_DEBOUNCE then
+            return
         end
+        soundPlayedFor[name] = now
+    end
+    local idx = SimpleWhisper_DB.soundChoice or 1
+    local snd = SOUND_OPTIONS[idx]
+    if snd then
+        PlaySoundFile(snd.file, "Master")
     end
 end
 
@@ -2413,17 +2423,22 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 local fakeMsg = "Test whisper " .. date("%H:%M:%S")
                 EnsureConversation(fakeName, fakeName)
                 AddMessage(fakeName, "in", fakeMsg, fakeName)
-                PlayWhisperSound()
                 local wasHidden = not mainFrame or not mainFrame:IsShown()
                 if wasHidden and SimpleWhisper_DB.autoOpen ~= false then
                     if not InCombatLockdown() or SimpleWhisper_DB.combatMode == 1 then
+                        PlayWhisperSound(name)
                         local f = CreateMainFrame()
                         f:Show()
                         SelectConversation(fakeName, true)
                         f.nameScroll:SetVerticalScroll(0)
                     elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 2 then
                         pendingCombatNames[fakeName] = true
+                        PlayWhisperSound(fakeName)
+                    elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 3 then
+                        PlayWhisperSound(fakeName)
                     end
+                elseif wasHidden then
+                    PlayWhisperSound(fakeName)
                 end
                 if not wasHidden and mainFrame and mainFrame:IsShown() then
                     if not selectedName then
@@ -2467,21 +2482,27 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
         AddMessage(name, "in", text, fullName)
-        PlayWhisperSound()
 
         -- 창이 없거나 숨겨져 있으면 자동으로 열기 (옵션 확인)
         local wasHidden = not mainFrame or not mainFrame:IsShown()
         if wasHidden and SimpleWhisper_DB.autoOpen ~= false then
             if not InCombatLockdown() or SimpleWhisper_DB.combatMode == 1 then
+                PlayWhisperSound(name)
                 local f = CreateMainFrame()
                 f:Show()
                 SelectConversation(name, true)
                 f.nameScroll:SetVerticalScroll(0)
             elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 2 then
                 pendingCombatNames[name] = true
+                PlayWhisperSound(name)
+            elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 3 then
+                PlayWhisperSound(name)
             end
+        elseif wasHidden then
+            -- autoOpen 꺼져있어도 소리는 재생
+            PlayWhisperSound(name)
         end
-        -- 창이 이미 열려 있었을 때만 대화 선택/갱신
+        -- 창이 이미 열려 있었을 때만 대화 선택/갱신 (소리 없음)
         if not wasHidden and mainFrame and mainFrame:IsShown() then
             if not selectedName then
                 SelectConversation(name, true)
@@ -2525,18 +2546,24 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         local shortDisplay = displayName:match("^(.-)#") or displayName
         EnsureConversation(shortDisplay, displayName, true, bnID)
         AddMessage(shortDisplay, "in", text, displayName)
-        PlayWhisperSound()
 
         local wasHidden = not mainFrame or not mainFrame:IsShown()
         if wasHidden and SimpleWhisper_DB.autoOpen ~= false then
             if not InCombatLockdown() or SimpleWhisper_DB.combatMode == 1 then
+                PlayWhisperSound(shortDisplay)
                 local f = CreateMainFrame()
                 f:Show()
+                SelectConversation(shortDisplay, true)
             elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 2 then
                 pendingCombatNames[shortDisplay] = true
+                PlayWhisperSound(shortDisplay)
+            elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 3 then
+                PlayWhisperSound(shortDisplay)
             end
+        elseif wasHidden then
+            PlayWhisperSound(shortDisplay)
         end
-        if mainFrame and mainFrame:IsShown() then
+        if not wasHidden and mainFrame and mainFrame:IsShown() then
             if not selectedName then
                 SelectConversation(shortDisplay, true)
             else
@@ -2678,15 +2705,15 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             if mainFrame and mainFrame:IsShown() then
                 wipe(pendingCombatNames)
             else
-                local f = CreateMainFrame()
-                f:Show()
-                -- 보류 이름이 1개면 자동 선택
                 local count = 0
                 local singleName = nil
                 for n in pairs(pendingCombatNames) do
                     count = count + 1
                     singleName = n
                 end
+                PlayWhisperSound(singleName)
+                local f = CreateMainFrame()
+                f:Show()
                 if count == 1 then
                     SelectConversation(singleName, true)
                 end
