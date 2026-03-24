@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.4] - 2026-03-24
+
+### Added
+- **소리 선택지 확장**: 5종으로 확대 — 귓속말/경매장/초대(SoundKit)/BNet(SoundKit)/커스텀
+- **SoundKit ID 지원**: 파일 경로 외에 WoW SoundKit ID로도 소리 재생 가능
+
 ## [1.2.3] - 2026-03-24
 
 ### Changed

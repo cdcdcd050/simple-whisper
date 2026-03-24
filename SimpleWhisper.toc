@@ -8,7 +8,7 @@
 ## Title-koKR: SimpleWhisper (귓속말)
 ## Notes-koKR: 간단한 귓속말 메신저
 ## Author: CH00
-## Version: 1.2.3
+## Version: 1.2.4
 ## SavedVariablesPerCharacter: SimpleWhisper_DB
 ## OptionalDeps: Arcana
 

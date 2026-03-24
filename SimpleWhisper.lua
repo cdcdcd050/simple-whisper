@@ -40,7 +40,9 @@ local L = {
     OPT_OPACITY     = "Opacity",
     SND_1           = "Whisper",
     SND_2           = "Auction",
-    SND_3           = "Custom",
+    SND_3           = "Invite",
+    SND_4           = "BNet",
+    SND_5           = "Custom",
     URL_DIALOG      = "Copy this URL:",
     CONFIRM_DELETE  = "Delete conversation with %s?",
     CONFIRM_DEL_ALL = "Delete all conversations?\n(Settings will be kept)",
@@ -185,7 +187,9 @@ if locale == "koKR" then
     L.OPT_OPACITY   = "불투명도"
     L.SND_1         = "귓속말 알림"
     L.SND_2         = "경매장"
-    L.SND_3         = "커스텀"
+    L.SND_3         = "초대"
+    L.SND_4         = "BNet"
+    L.SND_5         = "커스텀"
     L.URL_DIALOG    = "URL을 복사하세요:"
     L.CONFIRM_DELETE = "%s 님과의 대화를 삭제합니다."
     L.CONFIRM_DEL_ALL = "모든 대화를 삭제합니다.\n(설정은 유지됩니다)"
@@ -328,7 +332,9 @@ end
 local SOUND_OPTIONS = {
     { name = L.SND_1, file = "Sound\\Interface\\iTellMessage.ogg" },
     { name = L.SND_2, file = "Sound\\Interface\\AuctionWindowOpen.ogg" },
-    { name = L.SND_3, file = "Interface\\AddOns\\SimpleWhisper\\Sounds\\sw3.ogg" },
+    { name = L.SND_3, soundID = 3332 },
+    { name = L.SND_4, soundID = 18019 },
+    { name = L.SND_5, file = "Interface\\AddOns\\SimpleWhisper\\Sounds\\sw3.ogg" },
 }
 
 local SOUND_DEBOUNCE = 30  -- 같은 상대 연속 귓속말 소리 무시 간격 (초)
@@ -346,7 +352,11 @@ local function PlayWhisperSound(name, isOutgoing)
     local idx = SimpleWhisper_DB.soundChoice or 1
     local snd = SOUND_OPTIONS[idx]
     if snd then
-        PlaySoundFile(snd.file, "SFX")
+        if snd.soundID then
+            PlaySound(snd.soundID, "SFX")
+        elseif snd.file then
+            PlaySoundFile(snd.file, "SFX")
+        end
     end
 end
 
@@ -1126,7 +1136,12 @@ local function CreateMainFrame()
             SimpleWhisper_DB.soundChoice = i
             UpdateSoundBtns()
             wipe(soundPlayedFor); wipe(soundPlayedForOut)
-            PlaySoundFile(SOUND_OPTIONS[i].file, "Master")
+            local opt = SOUND_OPTIONS[i]
+            if opt.soundID then
+                PlaySound(opt.soundID, "SFX")
+            elseif opt.file then
+                PlaySoundFile(opt.file, "SFX")
+            end
             if i == #SOUND_OPTIONS then
                 print(L.CHAT_PREFIX .. " " .. L.MSG_CUSTOM_SND)
             end
