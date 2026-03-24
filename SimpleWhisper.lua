@@ -278,6 +278,14 @@ end
 local function EnsureConversation(name, fullName, isBN, bnID)
     if not conversations[name] then
         conversations[name] = { fullName = fullName or name }
+        -- nameList에 없으면 추가
+        local found = false
+        for _, n in ipairs(nameList) do
+            if n == name then found = true; break end
+        end
+        if not found then
+            table.insert(nameList, 1, name)
+        end
     elseif fullName and fullName ~= name then
         conversations[name].fullName = fullName
     end
@@ -377,19 +385,16 @@ AddMessage = function(name, dir, text, fullName)
     EnsureConversation(name, fullName)
     local entry = { who = dir, msg = text, time = TimeStamp(), date = date("%Y-%m-%d") }
     table.insert(conversations[name], entry)
-    if dir ~= "sys" then
-        BumpName(name)
-    end
-
+    -- 새 귓 수신(다른 상대)만 맨 위로 이동, 이미 안읽음 있으면 위치 유지
     if dir == "in" and name ~= selectedName then
+        if not unreadCounts[name] or unreadCounts[name] == 0 then
+            BumpName(name)
+        end
         unreadCounts[name] = (unreadCounts[name] or 0) + 1
         UpdateLDBText()
     end
     if mainFrame and mainFrame:IsShown() then
-        if dir == "out" then
-            RefreshNameList()
-            mainFrame.nameScroll:SetVerticalScroll(0)
-        elseif dir == "in" and name ~= selectedName then
+        if dir == "out" or (dir == "in" and name ~= selectedName) then
             RefreshNameList()
         end
     end
@@ -539,8 +544,15 @@ RefreshNameList = function()
             selBar:SetWidth(3)
             selBar:SetColorTexture(1, 0.82, 0, 1)
             selBar:Hide()
+            local unreadBar = btn:CreateTexture(nil, "OVERLAY")
+            unreadBar:SetPoint("TOPLEFT", 0, 0)
+            unreadBar:SetPoint("BOTTOMLEFT", 0, 0)
+            unreadBar:SetWidth(2)
+            unreadBar:SetColorTexture(1, 0.2, 0.2, 1)
+            unreadBar:Hide()
             btn.selTex = selBg
             btn.selBar = selBar
+            btn.unreadBar = unreadBar
             btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
             btn:SetScript("OnClick", function(self, mouseButton)
                 if mouseButton == "RightButton" then
@@ -585,6 +597,14 @@ RefreshNameList = function()
         else
             btn.selTex:Hide()
             if btn.selBar then btn.selBar:Hide() end
+        end
+        -- 안 읽음 빨간 바 (선택 중이면 금색 바 우선)
+        if btn.unreadBar then
+            if count > 0 and name ~= selectedName then
+                btn.unreadBar:Show()
+            else
+                btn.unreadBar:Hide()
+            end
         end
         btn:Show()
     end
@@ -2007,7 +2027,6 @@ end
 ----------------------------------------------------------------------
 local function OpenWhisperTo(name, fullName)
     EnsureConversation(name, fullName)
-    BumpName(name)
     local f = CreateMainFrame()
     f:Show()
     -- 타겟/포커스/마우스오버에서 정보 추출
@@ -2058,7 +2077,6 @@ local function OpenBNetWhisperTo(bnID)
     if not displayName then return end
     local shortDisplay = displayName:match("^(.-)#") or displayName
     EnsureConversation(shortDisplay, displayName, true, bnID)
-    BumpName(shortDisplay)
     local f = CreateMainFrame()
     f:Show()
     SelectConversation(shortDisplay)
@@ -2427,6 +2445,78 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 if wasHidden and SimpleWhisper_DB.autoOpen ~= false then
                     if not InCombatLockdown() or SimpleWhisper_DB.combatMode == 1 then
                         PlayWhisperSound(name)
+                        local f = CreateMainFrame()
+                        f:Show()
+                        SelectConversation(fakeName, true)
+                        f.nameScroll:SetVerticalScroll(0)
+                    elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 2 then
+                        pendingCombatNames[fakeName] = true
+                        PlayWhisperSound(fakeName)
+                    elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 3 then
+                        PlayWhisperSound(fakeName)
+                    end
+                elseif wasHidden then
+                    PlayWhisperSound(fakeName)
+                end
+                if not wasHidden and mainFrame and mainFrame:IsShown() then
+                    if not selectedName then
+                        SelectConversation(fakeName, true)
+                    else
+                        RefreshNameList()
+                        if fakeName == selectedName then
+                            unreadCounts[fakeName] = 0
+                            UpdateLDBText()
+                            RefreshChatDisplay()
+                        end
+                    end
+                end
+                print(L.CHAT_PREFIX .. " Test whisper from " .. fakeName)
+                return
+            elseif msg == "t2" then
+                local fakeName = "TestPlayer2"
+                local fakeMsg = "Test whisper " .. date("%H:%M:%S")
+                EnsureConversation(fakeName, fakeName)
+                AddMessage(fakeName, "in", fakeMsg, fakeName)
+                local wasHidden = not mainFrame or not mainFrame:IsShown()
+                if wasHidden and SimpleWhisper_DB.autoOpen ~= false then
+                    if not InCombatLockdown() or SimpleWhisper_DB.combatMode == 1 then
+                        PlayWhisperSound(fakeName)
+                        local f = CreateMainFrame()
+                        f:Show()
+                        SelectConversation(fakeName, true)
+                        f.nameScroll:SetVerticalScroll(0)
+                    elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 2 then
+                        pendingCombatNames[fakeName] = true
+                        PlayWhisperSound(fakeName)
+                    elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 3 then
+                        PlayWhisperSound(fakeName)
+                    end
+                elseif wasHidden then
+                    PlayWhisperSound(fakeName)
+                end
+                if not wasHidden and mainFrame and mainFrame:IsShown() then
+                    if not selectedName then
+                        SelectConversation(fakeName, true)
+                    else
+                        RefreshNameList()
+                        if fakeName == selectedName then
+                            unreadCounts[fakeName] = 0
+                            UpdateLDBText()
+                            RefreshChatDisplay()
+                        end
+                    end
+                end
+                print(L.CHAT_PREFIX .. " Test whisper from " .. fakeName)
+                return
+            elseif msg == "t3" then
+                local fakeName = "TestPlayer3"
+                local fakeMsg = "Test whisper " .. date("%H:%M:%S")
+                EnsureConversation(fakeName, fakeName)
+                AddMessage(fakeName, "in", fakeMsg, fakeName)
+                local wasHidden = not mainFrame or not mainFrame:IsShown()
+                if wasHidden and SimpleWhisper_DB.autoOpen ~= false then
+                    if not InCombatLockdown() or SimpleWhisper_DB.combatMode == 1 then
+                        PlayWhisperSound(fakeName)
                         local f = CreateMainFrame()
                         f:Show()
                         SelectConversation(fakeName, true)
