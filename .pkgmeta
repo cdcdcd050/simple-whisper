@@ -1,4 +1,5 @@
 package-as: SimpleWhisper
+manual-changelog: CHANGELOG.md
 
 ignore:
   - CLAUDE.md
