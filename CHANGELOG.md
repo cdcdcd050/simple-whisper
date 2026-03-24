@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.2.0] - 2026-03-24
+## [1.2.1] - 2026-03-24
 
 ### Added
 - **CurseForge 자동 패키징**: `.pkgmeta` 추가, GitHub 태그 push 시 CurseForge 자동 배포
