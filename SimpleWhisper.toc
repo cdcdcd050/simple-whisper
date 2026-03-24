@@ -1,8 +1,5 @@
-## Interface: 120001
-## Interface-Classic: 11508
+## Interface: 120005
 ## Interface-BCC: 20505
-## Interface-Wrath: 30405
-## Interface-Cata: 40402
 ## Title: SimpleWhisper
 ## Notes: Simple whisper messenger
 ## Title-koKR: SimpleWhisper (귓속말)
