@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3] - 2026-03-28
+
+### Added
+- Capture AFK/DND auto-replies in SimpleWhisper popup instead of default chat frame
+- AFK/DND replies are displayed as red system messages in the conversation
+- Chat filter hides AFK/DND replies from default chat when "Hide whispers from chat" is enabled
+
 ## [1.3.2] - 2026-03-24
 
 ### Changed

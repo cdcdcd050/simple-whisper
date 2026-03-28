@@ -71,6 +71,8 @@ local L = {
     WHO_TOTAL_PAT   = "(%d+) players? total",
     WHO_NOTFOUND_PAT = "not found",
     READ_MARKER     = "Read up to here",
+    AFK_REPLY       = "<AFK>",
+    DND_REPLY       = "<DND>",
 }
 
 ----------------------------------------------------------------------
@@ -215,6 +217,8 @@ if locale == "koKR" then
     L.MEMO_HINT     = "클릭하여 입력..."
     L.MEMO_FMT      = "%s 메모:"
     L.READ_MARKER   = "여기까지 읽음"
+    L.AFK_REPLY     = "<자리비움>"
+    L.DND_REPLY     = "<다른 용무중>"
     L.WHO_LEVEL_PAT = "^(%d+)레벨"
     L.WHO_TOTAL_PAT = "모두%s+(%d+)%s*명"
     L.WHO_NOTFOUND_PAT = "찾지 못했습니다"
@@ -289,6 +293,8 @@ if locale == "zhCN" then
     L.MEMO_HINT     = "点击输入..."
     L.MEMO_FMT      = "%s 备注："
     L.READ_MARKER   = "已读到此处"
+    L.AFK_REPLY     = "<离开>"
+    L.DND_REPLY     = "<勿扰>"
     L.WHO_LEVEL_PAT = "^(%d+)级"
     L.WHO_TOTAL_PAT = "共找到%s*(%d+)%s*位玩家"
     L.WHO_NOTFOUND_PAT = "没有找到"
@@ -363,6 +369,8 @@ if locale == "deDE" then
     L.MEMO_HINT     = "Klicken zum Eingeben..."
     L.MEMO_FMT      = "%s Notiz:"
     L.READ_MARKER   = "Bis hier gelesen"
+    L.AFK_REPLY     = "<AFK>"
+    L.DND_REPLY     = "<DND>"
     L.WHO_LEVEL_PAT = "^Stufe (%d+)"
     L.WHO_TOTAL_PAT = "(%d+) Spieler insgesamt"
     L.WHO_NOTFOUND_PAT = "nicht gefunden"
@@ -2335,6 +2343,8 @@ eventFrame:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
 eventFrame:RegisterEvent("CHAT_MSG_BN_WHISPER")
 eventFrame:RegisterEvent("CHAT_MSG_BN_WHISPER_INFORM")
 eventFrame:RegisterEvent("CHAT_MSG_SYSTEM")
+eventFrame:RegisterEvent("CHAT_MSG_AFK")
+eventFrame:RegisterEvent("CHAT_MSG_DND")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
@@ -2520,6 +2530,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER_INFORM", WhisperFilter)
         ChatFrame_AddMessageEventFilter("CHAT_MSG_BN_WHISPER", WhisperFilter)
         ChatFrame_AddMessageEventFilter("CHAT_MSG_BN_WHISPER_INFORM", WhisperFilter)
+        ChatFrame_AddMessageEventFilter("CHAT_MSG_AFK", WhisperFilter)
+        ChatFrame_AddMessageEventFilter("CHAT_MSG_DND", WhisperFilter)
 
         -- /who 시스템 메시지 필터: 원본 이벤트 핸들러 후킹
         for i = 1, NUM_CHAT_WINDOWS do
@@ -2814,6 +2826,20 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             RefreshNameList()
             if name == selectedName then
                 RefreshChatDisplay()
+            end
+        end
+
+    elseif event == "CHAT_MSG_AFK" or event == "CHAT_MSG_DND" then
+        local text, fullName = ...
+        local name = ShortName(fullName)
+        if conversations[name] then
+            local sysText = (event == "CHAT_MSG_AFK") and (L.AFK_REPLY or "<AFK>") or (L.DND_REPLY or "<DND>")
+            AddMessage(name, "sys", sysText .. " " .. text, fullName)
+            if mainFrame and mainFrame:IsShown() then
+                RefreshNameList()
+                if name == selectedName then
+                    RefreshChatDisplay()
+                end
             end
         end
 
