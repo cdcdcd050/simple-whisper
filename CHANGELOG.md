@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.5.1] - 2026-04-01
+
+### Fixed
+- Version display showing old version (1.3.4) on non-retail clients — all flavor TOC files now updated together
+
 ## [1.5.0] - 2026-04-01
 
 ### Added
