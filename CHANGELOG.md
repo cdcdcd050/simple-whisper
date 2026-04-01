@@ -1,6 +1,10 @@
 # Changelog
 
-## [1.3.5] - 2026-04-01
+## [1.4.0] - 2026-04-01
+
+### Added
+- Right-click menu on minimap button and LDB broker (Open, Options, Addon toggle, Close)
+- LDB/minimap shows disabled state when addon is off (grey icon, "Off" label)
 
 ### Fixed
 - Addon on/off toggle state now persists across character logins

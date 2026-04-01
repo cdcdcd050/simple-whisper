@@ -76,6 +76,11 @@ local L = {
     BTN_ADDON_STATE = "Addon:",
     BTN_STATE_ON    = "ON",
     BTN_STATE_OFF   = "OFF",
+    MENU_OPEN       = "Open",
+    MENU_OPTIONS    = "Options",
+    MENU_ADDON_ON   = "Addon: ON",
+    MENU_ADDON_OFF  = "Addon: OFF",
+    LDB_DISABLED    = "Off",
 }
 
 ----------------------------------------------------------------------
@@ -226,6 +231,11 @@ if locale == "koKR" then
     L.BTN_ADDON_STATE = "애드온 상태 :"
     L.BTN_STATE_ON    = "켜짐"
     L.BTN_STATE_OFF   = "꺼짐"
+    L.MENU_OPEN       = "열기"
+    L.MENU_OPTIONS    = "옵션"
+    L.MENU_ADDON_ON   = "애드온: 켜짐"
+    L.MENU_ADDON_OFF  = "애드온: 꺼짐"
+    L.LDB_DISABLED    = "사용안함"
     L.WHO_LEVEL_PAT = "^(%d+)레벨"
     L.WHO_TOTAL_PAT = "모두%s+(%d+)%s*명"
     L.WHO_NOTFOUND_PAT = "찾지 못했습니다"
@@ -305,6 +315,11 @@ if locale == "zhCN" then
     L.BTN_ADDON_STATE = "插件状态："
     L.BTN_STATE_ON    = "开启"
     L.BTN_STATE_OFF   = "关闭"
+    L.MENU_OPEN       = "打开"
+    L.MENU_OPTIONS    = "选项"
+    L.MENU_ADDON_ON   = "插件：开启"
+    L.MENU_ADDON_OFF  = "插件：关闭"
+    L.LDB_DISABLED    = "已关闭"
     L.WHO_LEVEL_PAT = "^(%d+)级"
     L.WHO_TOTAL_PAT = "共找到%s*(%d+)%s*位玩家"
     L.WHO_NOTFOUND_PAT = "没有找到"
@@ -384,6 +399,11 @@ if locale == "deDE" then
     L.BTN_ADDON_STATE = "Addon:"
     L.BTN_STATE_ON    = "AN"
     L.BTN_STATE_OFF   = "AUS"
+    L.MENU_OPEN       = "Öffnen"
+    L.MENU_OPTIONS    = "Optionen"
+    L.MENU_ADDON_ON   = "Addon: AN"
+    L.MENU_ADDON_OFF  = "Addon: AUS"
+    L.LDB_DISABLED    = "Aus"
     L.WHO_LEVEL_PAT = "^Stufe (%d+)"
     L.WHO_TOTAL_PAT = "(%d+) Spieler insgesamt"
     L.WHO_NOTFOUND_PAT = "nicht gefunden"
@@ -535,25 +555,38 @@ end
 local minimapBadge = nil  -- 미니맵 배지 (ADDON_LOADED 후 설정됨)
 
 local function UpdateLDBText()
-    local total = 0
-    for _, c in pairs(unreadCounts) do
-        total = total + c
-    end
     if ldbObject then
-        if total > 0 then
-            ldbObject.text = L.LDB_LABEL .. "(|cffff3333" .. total .. "|r)"
+        if addonDisabled then
+            ldbObject.text = L.LDB_LABEL .. "(|cff888888" .. L.LDB_DISABLED .. "|r)"
         else
-            ldbObject.text = L.LDB_LABEL .. "(0)"
+            local total = 0
+            for _, c in pairs(unreadCounts) do
+                total = total + c
+            end
+            if total > 0 then
+                ldbObject.text = L.LDB_LABEL .. "(|cffff3333" .. total .. "|r)"
+            else
+                ldbObject.text = L.LDB_LABEL .. "(0)"
+            end
         end
     end
     if minimapBadge then
-        if total > 0 then
-            minimapBadge.text:SetText(total)
-            minimapBadge:Show()
-            minimapBadge.icon:SetVertexColor(1, 0.5, 0.7)
-        else
+        if addonDisabled then
             minimapBadge:Hide()
-            minimapBadge.icon:SetVertexColor(1, 1, 1)
+            minimapBadge.icon:SetVertexColor(0.5, 0.5, 0.5)
+        else
+            local total = 0
+            for _, c in pairs(unreadCounts) do
+                total = total + c
+            end
+            if total > 0 then
+                minimapBadge.text:SetText(total)
+                minimapBadge:Show()
+                minimapBadge.icon:SetVertexColor(1, 0.5, 0.7)
+            else
+                minimapBadge:Hide()
+                minimapBadge.icon:SetVertexColor(1, 1, 1)
+            end
         end
     end
 end
@@ -1245,6 +1278,7 @@ local function CreateMainFrame()
     -- 옵션 패널
     local optPanel = CreateFrame("Frame", nil, f,
         BackdropTemplateMixin and "BackdropTemplate" or nil)
+    f.optPanel = optPanel
     optPanel:SetHeight(160) -- 임시, SizeOptPanel에서 재계산
     optPanel:SetPoint("TOPRIGHT", optBtn, "BOTTOMRIGHT", 0, -2)
     optPanel:SetFrameStrata("TOOLTIP")
@@ -1620,6 +1654,7 @@ local function CreateMainFrame()
             addonDisabled = (i == 2)
             SimpleWhisper_DB.addonDisabled = addonDisabled
             UpdateAddonStateBtns()
+            UpdateLDBText()
         end)
         addonStateBtns[i] = btn
     end
@@ -2489,6 +2524,49 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             end
         end
 
+        -- 우클릭 드롭다운 메뉴
+        local menuFrame = CreateFrame("Frame", "SimpleWhisperMenu", UIParent, "UIDropDownMenuTemplate")
+        local function ShowRightClickMenu(anchor)
+            local function InitMenu(frame, level)
+                local info = UIDropDownMenu_CreateInfo()
+                -- Open
+                info.text = L.MENU_OPEN
+                info.notCheckable = true
+                info.func = function() ToggleMainFrame() end
+                UIDropDownMenu_AddButton(info, level)
+                -- Options
+                info = UIDropDownMenu_CreateInfo()
+                info.text = L.MENU_OPTIONS
+                info.notCheckable = true
+                info.func = function()
+                    local f = CreateMainFrame()
+                    f:Show()
+                    if f.optPanel then
+                        f.optPanel:Show()
+                    end
+                end
+                UIDropDownMenu_AddButton(info, level)
+                -- Addon toggle
+                info = UIDropDownMenu_CreateInfo()
+                info.text = addonDisabled and L.MENU_ADDON_OFF or L.MENU_ADDON_ON
+                info.notCheckable = true
+                info.func = function()
+                    addonDisabled = not addonDisabled
+                    SimpleWhisper_DB.addonDisabled = addonDisabled
+                    UpdateLDBText()
+                end
+                UIDropDownMenu_AddButton(info, level)
+                -- Close
+                info = UIDropDownMenu_CreateInfo()
+                info.text = L.CLOSE
+                info.notCheckable = true
+                info.func = function() CloseDropDownMenus() end
+                UIDropDownMenu_AddButton(info, level)
+            end
+            UIDropDownMenu_Initialize(menuFrame, InitMenu, "MENU")
+            ToggleDropDownMenu(1, nil, menuFrame, anchor, 0, 0)
+        end
+
         -- LDB 오브젝트 생성
         local LDB = LibStub and LibStub:GetLibrary("LibDataBroker-1.1", true)
         if LDB then
@@ -2496,9 +2574,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 type = "data source",
                 text = L.LDB_LABEL,
                 icon = "Interface\\CHATFRAME\\UI-ChatIcon-Chat-Up",
-                OnClick = function(_, button)
+                OnClick = function(self, button)
                     if button == "LeftButton" then
                         ToggleMainFrame()
+                    elseif button == "RightButton" then
+                        ShowRightClickMenu(self)
                     end
                 end,
                 OnTooltipShow = function(tt)
@@ -2562,9 +2642,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         UpdateMinimapPos()
         minimapBtn:RegisterForDrag("RightButton")
         minimapBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-        minimapBtn:SetScript("OnClick", function(_, button)
+        minimapBtn:SetScript("OnClick", function(self, button)
             if button == "LeftButton" then
                 ToggleMainFrame()
+            elseif button == "RightButton" then
+                ShowRightClickMenu(self)
             end
         end)
         minimapBtn:SetScript("OnEnter", function(self)
