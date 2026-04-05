@@ -6,6 +6,7 @@ move-folders:
 
 ignore:
   - CLAUDE.md
+  - "*/CLAUDE.md"
   - README.md
   - CHANGELOG.md
   - "*.zip"
