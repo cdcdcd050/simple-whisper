@@ -442,6 +442,8 @@ end
 
 -- 채팅에서 수집한 직업 캐시 (이름 → 직업)
 local classCache = {}
+local classCacheCount = 0
+local CLASS_CACHE_MAX = 500
 
 local classCacheFrame = CreateFrame("Frame")
 classCacheFrame:RegisterEvent("CHAT_MSG_CHANNEL")
@@ -459,6 +461,22 @@ classCacheFrame:SetScript("OnEvent", function(self, event, _, fullName, _, _, _,
         local _, englishClass = GetPlayerInfoByGUID(guid)
         if englishClass then
             local name = Ambiguate(fullName, "none")
+            if not classCache[name] then
+                -- 캐시가 너무 커지면 대화 상대만 남기고 정리
+                if classCacheCount >= CLASS_CACHE_MAX then
+                    local keep = {}
+                    local kept = 0
+                    for n in pairs(conversations) do
+                        if classCache[n] then
+                            keep[n] = classCache[n]
+                            kept = kept + 1
+                        end
+                    end
+                    classCache = keep
+                    classCacheCount = kept
+                end
+                classCacheCount = classCacheCount + 1
+            end
             classCache[name] = englishClass
         end
     end
@@ -579,38 +597,30 @@ end
 local minimapBadge = nil  -- 미니맵 배지 (ADDON_LOADED 후 설정됨)
 
 local function UpdateLDBText()
+    local total = 0
+    for _, c in pairs(unreadCounts) do
+        total = total + c
+    end
     if ldbObject then
         if addonDisabled then
             ldbObject.text = L.LDB_LABEL .. "(|cff888888" .. L.LDB_DISABLED .. "|r)"
+        elseif total > 0 then
+            ldbObject.text = L.LDB_LABEL .. "(|cffff3333" .. total .. "|r)"
         else
-            local total = 0
-            for _, c in pairs(unreadCounts) do
-                total = total + c
-            end
-            if total > 0 then
-                ldbObject.text = L.LDB_LABEL .. "(|cffff3333" .. total .. "|r)"
-            else
-                ldbObject.text = L.LDB_LABEL .. "(0)"
-            end
+            ldbObject.text = L.LDB_LABEL .. "(0)"
         end
     end
     if minimapBadge then
         if addonDisabled then
             minimapBadge:Hide()
             minimapBadge.icon:SetVertexColor(0.5, 0.5, 0.5)
+        elseif total > 0 then
+            minimapBadge.text:SetText(total)
+            minimapBadge:Show()
+            minimapBadge.icon:SetVertexColor(1, 0.5, 0.7)
         else
-            local total = 0
-            for _, c in pairs(unreadCounts) do
-                total = total + c
-            end
-            if total > 0 then
-                minimapBadge.text:SetText(total)
-                minimapBadge:Show()
-                minimapBadge.icon:SetVertexColor(1, 0.5, 0.7)
-            else
-                minimapBadge:Hide()
-                minimapBadge.icon:SetVertexColor(1, 1, 1)
-            end
+            minimapBadge:Hide()
+            minimapBadge.icon:SetVertexColor(1, 1, 1)
         end
     end
 end
@@ -1408,6 +1418,7 @@ local function CreateMainFrame()
             end
         end
     end
+    local COMBAT_TIPS = { L.COMBAT_TIP_1, L.COMBAT_TIP_2, L.COMBAT_TIP_3 }
     for i = 1, 3 do
         local btn = CreateFrame("Button", nil, optPanel, "UIPanelButtonTemplate")
         btn:SetHeight(16)
@@ -1418,7 +1429,6 @@ local function CreateMainFrame()
         else
             btn:SetPoint("LEFT", combatBtns[i - 1], "RIGHT", 0, 0)
         end
-        local COMBAT_TIPS = { L.COMBAT_TIP_1, L.COMBAT_TIP_2, L.COMBAT_TIP_3 }
         btn:SetScript("OnClick", function()
             SimpleWhisper_DB.combatMode = i
             UpdateCombatBtns()
@@ -2145,7 +2155,7 @@ local function CreateMainFrame()
     chatDisplay:SetJustifyH("LEFT")
 
     -- 폰트 크기는 inputBox 생성 후 적용됨 (아래 ApplyFontSize 참조)
-    chatDisplay:SetMaxLines(128)
+    chatDisplay:SetMaxLines(512)
     chatDisplay:SetFading(false)
     chatDisplay:EnableMouse(true)
     chatDisplay:RegisterForDrag("LeftButton")
@@ -2243,14 +2253,16 @@ local function CreateMainFrame()
             end
         end
     end)
-    -- 팝업 외부 클릭 시 입력란 포커스 해제
+    -- 팝업 외부 클릭 시 입력란 포커스 해제 (포커스 있을 때만 OnUpdate 활성화)
     local focusWatcher = CreateFrame("Frame", nil, f)
     focusWatcher:SetScript("OnUpdate", function()
-        if not inputBox:HasFocus() then return end
         if IsMouseButtonDown("LeftButton") and not f:IsMouseOver() then
             inputBox:ClearFocus()
         end
     end)
+    focusWatcher:Hide()
+    inputBox:HookScript("OnEditFocusGained", function() focusWatcher:Show() end)
+    inputBox:HookScript("OnEditFocusLost", function() focusWatcher:Hide() end)
     f.inputBox = inputBox
 
     -- 메모란 (입력창 아래, 창 맨 하단 — 제목 표시줄 스타일)
@@ -2930,81 +2942,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                     RefreshChatDisplay()
                 end
                 return
-            elseif msg == "t1" then
+            elseif msg == "t1" or msg == "t2" or msg == "t3" then
                 -- 가짜 귓속말 수신 이벤트 시뮬레이션 (테스트용)
-                local fakeName = "TestPlayer"
-                local fakeMsg = "Test whisper " .. date("%H:%M:%S")
-                EnsureConversation(fakeName, fakeName)
-                AddMessage(fakeName, "in", fakeMsg, fakeName)
-                local wasHidden = not mainFrame or not mainFrame:IsShown()
-                if wasHidden and SimpleWhisper_DB.autoOpen ~= false then
-                    if not InCombatLockdown() or SimpleWhisper_DB.combatMode == 1 then
-                        PlayWhisperSound(name)
-                        local f = CreateMainFrame()
-                        f:Show()
-                        SelectConversation(fakeName, true)
-                        f.nameScroll:SetVerticalScroll(0)
-                    elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 2 then
-                        pendingCombatNames[fakeName] = true
-                        PlayWhisperSound(fakeName)
-                    elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 3 then
-                        PlayWhisperSound(fakeName)
-                    end
-                elseif wasHidden then
-                    PlayWhisperSound(fakeName)
-                end
-                if not wasHidden and mainFrame and mainFrame:IsShown() then
-                    if not selectedName then
-                        SelectConversation(fakeName, true)
-                    else
-                        RefreshNameList()
-                        if fakeName == selectedName then
-                            unreadCounts[fakeName] = 0
-                            UpdateLDBText()
-                            RefreshChatDisplay()
-                        end
-                    end
-                end
-                print(L.CHAT_PREFIX .. " Test whisper from " .. fakeName)
-                return
-            elseif msg == "t2" then
-                local fakeName = "TestPlayer2"
-                local fakeMsg = "Test whisper " .. date("%H:%M:%S")
-                EnsureConversation(fakeName, fakeName)
-                AddMessage(fakeName, "in", fakeMsg, fakeName)
-                local wasHidden = not mainFrame or not mainFrame:IsShown()
-                if wasHidden and SimpleWhisper_DB.autoOpen ~= false then
-                    if not InCombatLockdown() or SimpleWhisper_DB.combatMode == 1 then
-                        PlayWhisperSound(fakeName)
-                        local f = CreateMainFrame()
-                        f:Show()
-                        SelectConversation(fakeName, true)
-                        f.nameScroll:SetVerticalScroll(0)
-                    elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 2 then
-                        pendingCombatNames[fakeName] = true
-                        PlayWhisperSound(fakeName)
-                    elseif InCombatLockdown() and SimpleWhisper_DB.combatMode == 3 then
-                        PlayWhisperSound(fakeName)
-                    end
-                elseif wasHidden then
-                    PlayWhisperSound(fakeName)
-                end
-                if not wasHidden and mainFrame and mainFrame:IsShown() then
-                    if not selectedName then
-                        SelectConversation(fakeName, true)
-                    else
-                        RefreshNameList()
-                        if fakeName == selectedName then
-                            unreadCounts[fakeName] = 0
-                            UpdateLDBText()
-                            RefreshChatDisplay()
-                        end
-                    end
-                end
-                print(L.CHAT_PREFIX .. " Test whisper from " .. fakeName)
-                return
-            elseif msg == "t3" then
-                local fakeName = "TestPlayer3"
+                local testNames = { t1 = "TestPlayer", t2 = "TestPlayer2", t3 = "TestPlayer3" }
+                local fakeName = testNames[msg]
                 local fakeMsg = "Test whisper " .. date("%H:%M:%S")
                 EnsureConversation(fakeName, fakeName)
                 AddMessage(fakeName, "in", fakeMsg, fakeName)
@@ -3266,7 +3207,15 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 if (whoCount and tonumber(whoCount) == 0) or msg:match(L.WHO_NOTFOUND_PAT) then
                     if mainFrame and target == selectedName then
                         if mainFrame.whoInfoText then
-                            mainFrame.whoInfoText:SetText("|cffff4444" .. L.WHO_OFFLINE .. "|r")
+                            local conv = conversations[target]
+                            local display = target
+                            if conv and conv.whoLevel then
+                                display = display .. " LV." .. conv.whoLevel
+                            end
+                            if conv and conv.whoGuild then
+                                display = display .. " <" .. conv.whoGuild .. ">"
+                            end
+                            mainFrame.whoInfoText:SetText("|cffff4444" .. L.WHO_OFFLINE .. " — " .. display .. "|r")
                         end
                         if mainFrame.refreshBtn then
                             mainFrame.refreshBtn:Hide()
